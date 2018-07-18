@@ -20,8 +20,6 @@ RUN apk add --no-cache -t .build-deps gnupg openssl \
 	if [ "$ES_TARBALL_ASC" ]; then \
 		curl -o elasticsearch.tar.gz.asc -Lskj "$ES_TARBALL_ASC"; \
 		export GNUPGHOME="$(mktemp -d)"; \
-		gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY"; \
-		gpg --batch --verify elasticsearch.tar.gz.asc elasticsearch.tar.gz; \
 		rm -r "$GNUPGHOME" elasticsearch.tar.gz.asc; \
 	fi; \
   tar -xf elasticsearch.tar.gz \
@@ -52,6 +50,7 @@ COPY run.sh /
 
 # Set environment variables defaults
 ENV ES_JAVA_OPTS "-Xms512m -Xmx512m"
+ENV DISCOVERY_SERVICE elasticsearch-discovery
 ENV CLUSTER_NAME elasticsearch-default
 ENV NODE_MASTER true
 ENV NODE_DATA true
@@ -64,10 +63,10 @@ ENV NUMBER_OF_MASTERS 1
 ENV MAX_LOCAL_STORAGE_NODES 1
 ENV SHARD_ALLOCATION_AWARENESS ""
 ENV SHARD_ALLOCATION_AWARENESS_ATTR ""
-ENV MEMORY_LOCK true
+ENV MEMORY_LOCK false
 ENV REPO_LOCATIONS []
 
 # Volume for Elasticsearch data
 VOLUME ["/data"]
 
-CMD ["/run.sh"]
+ENTRYPOINT ["/run.sh"]
