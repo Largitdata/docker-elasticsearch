@@ -1,18 +1,19 @@
-FROM quay.io/pires/docker-jre:8u151_cpufix
-MAINTAINER pjpires@gmail.com
+FROM alpine:3.11.3
+MAINTAINER jznight@gmail.com
 
 # Export HTTP & Transport
 EXPOSE 9200 9300
 
-ENV ES_VERSION 6.1.3
+ENV ES_VERSION 7.6.1
 
 ENV DOWNLOAD_URL "https://artifacts.elastic.co/downloads/elasticsearch"
-ENV ES_TARBAL "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}.tar.gz"
-ENV ES_TARBALL_ASC "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}.tar.gz.asc"
-ENV GPG_KEY "46095ACC8548582C1A2699A9D27D666CD88E42B4"
+ENV ES_TARBAL "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}-no-jdk-linux-x86_64.tar.gz"
+ENV ES_TARBALL_ASC "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}-no-jdk-linux-x86_64.tar.gz.asc"
+# ENV GPG_KEY "46095ACC8548582C1A2699A9D27D666CD88E42B4"
+ENV GPG_KEY "D88E42B4"
 
 # Install Elasticsearch.
-RUN apk add --no-cache --update bash ca-certificates su-exec util-linux curl
+RUN apk add --no-cache --update bash ca-certificates su-exec util-linux curl bind-tools openjdk11-jre
 RUN apk add --no-cache -t .build-deps gnupg openssl \
   && cd /tmp \
   && echo "===> Install Elasticsearch..." \
@@ -20,21 +21,16 @@ RUN apk add --no-cache -t .build-deps gnupg openssl \
 	if [ "$ES_TARBALL_ASC" ]; then \
 		curl -o elasticsearch.tar.gz.asc -Lskj "$ES_TARBALL_ASC"; \
 		export GNUPGHOME="$(mktemp -d)"; \
+		gpg --keyserver pgp.mit.edu --recv-keys "$GPG_KEY"; \
+		gpg --batch --verify elasticsearch.tar.gz.asc elasticsearch.tar.gz; \
 		rm -r "$GNUPGHOME" elasticsearch.tar.gz.asc; \
 	fi; \
   tar -xf elasticsearch.tar.gz \
   && ls -lah \
   && mv elasticsearch-$ES_VERSION /elasticsearch \
   && adduser -DH -s /sbin/nologin elasticsearch \
-  && echo "===> Creating Elasticsearch Paths..." \
-  && for path in \
-  	/elasticsearch/config \
-  	/elasticsearch/config/scripts \
-  	/elasticsearch/plugins \
-  ; do \
-  mkdir -p "$path"; \
-  chown -R elasticsearch:elasticsearch "$path"; \
-  done \
+  && mkdir -p /elasticsearch/config/scripts /elasticsearch/plugins \
+  && chown -R elasticsearch:elasticsearch /elasticsearch \
   && rm -rf /tmp/* \
   && apk del --purge .build-deps
 
@@ -55,16 +51,14 @@ ENV CLUSTER_NAME elasticsearch-default
 ENV NODE_MASTER true
 ENV NODE_DATA true
 ENV NODE_INGEST true
-ENV HTTP_ENABLE true
 ENV NETWORK_HOST _site_
 ENV HTTP_CORS_ENABLE true
 ENV HTTP_CORS_ALLOW_ORIGIN *
-ENV NUMBER_OF_MASTERS 1
-ENV MAX_LOCAL_STORAGE_NODES 1
 ENV SHARD_ALLOCATION_AWARENESS ""
 ENV SHARD_ALLOCATION_AWARENESS_ATTR ""
-ENV MEMORY_LOCK false
+ENV MEMORY_LOCK true
 ENV REPO_LOCATIONS []
+ENV JAVA_HOME "/usr/lib/jvm/default-jvm/jre"
 
 # Volume for Elasticsearch data
 VOLUME ["/data"]
